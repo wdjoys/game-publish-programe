@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-10 17:47:47
+# @Last Modified time: 2023-01-10 18:08:06
 
 
 from peewee import Model
@@ -103,7 +103,7 @@ def get_records_from_db(datetime):
     Returns:
         _type_: _description_
     """
-    result = ServersAd.select(ServersAd.name, ServersAd.timestamp).where(
+    result = ServersAd.select(ServersAd.url, ServersAd.timestamp).where(
         ServersAd.timestamp > datetime)
 
     return result
@@ -123,7 +123,7 @@ def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler):
 
     # 基于url 与 时间 构造数据库内的广告标识
     tags_db = [
-        f"{record.url}-{datetime.timestamp(record.timestamp)}" for record in records_db]
+        f"{record.url}-{datetime.datetime.timestamp(record.timestamp)}" for record in records_db]
 
     count_dict = {}
     id_count_dict = {}
@@ -132,8 +132,9 @@ def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler):
 
     server_id = get_primary_key_num(ServersAd)
     for record in records_crawler:
+        tag = f"{record['url']}-{datetime.datetime.timestamp(record['timestamp'])}"
 
-        if tag := f"{record['url']}-{datetime.timestamp(record['timestamp'])}" not in tags_db:
+        if tag not in tags_db:
 
             if tag in count_dict:
                 count_dict[tag] += 1

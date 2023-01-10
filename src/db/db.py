@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-10 16:47:28
+# @Last Modified time: 2023-01-10 18:14:55
 from peewee import *
 
 database = MySQLDatabase('game-publish', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT',
@@ -61,3 +61,4 @@ class ServersAdCount(BaseModel):
 
     class Meta:
         table_name = 'servers_ad_count'
+        primary_key = False

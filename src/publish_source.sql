@@ -11,7 +11,7 @@
  Target Server Version : 100137
  File Encoding         : 65001
 
- Date: 10/01/2023 18:14:04
+ Date: 10/01/2023 18:14:15
 */
 
 SET NAMES utf8mb4;
@@ -44,29 +44,8 @@ CREATE TABLE `publish_source`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin ROW_FORMAT = COMPACT;
 
 -- ----------------------------
--- Table structure for servers_ad
+-- Records of publish_source
 -- ----------------------------
-DROP TABLE IF EXISTS `servers_ad`;
-CREATE TABLE `servers_ad`  (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `timestamp` datetime NULL DEFAULT NULL,
-  `url` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '地址',
-  `ip` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT 'ip',
-  `name` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '服务器名称',
-  `route` varchar(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '线路',
-  `description` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '介绍',
-  `service` varchar(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '客服',
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 10439 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin ROW_FORMAT = COMPACT;
-
--- ----------------------------
--- Table structure for servers_ad_count
--- ----------------------------
-DROP TABLE IF EXISTS `servers_ad_count`;
-CREATE TABLE `servers_ad_count`  (
-  `source` int NULL DEFAULT NULL,
-  `game` int NULL DEFAULT NULL,
-  `count` int NULL DEFAULT NULL
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin ROW_FORMAT = COMPACT;
+INSERT INTO `publish_source` VALUES (2, 'http://99s.com', 'o4\\(\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\"', 3, 1, 2, 0, 4, 5, 6, '(\\d)+月(\\d+)日.(?:(\\d+)点)?(?:(\\d+)分)?', 2, 0, 3, 1, '2023-01-10 18:13:33', 1, 'gb2312');
 
 SET FOREIGN_KEY_CHECKS = 1;
