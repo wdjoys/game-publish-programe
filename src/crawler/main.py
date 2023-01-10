@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-10 18:08:06
+# @Last Modified time: 2023-01-10 23:14:40
 
 
 from peewee import Model
@@ -86,8 +86,8 @@ def time_format(year: int, time_string: str, publish_source: PublishSource):
     if result := r.search(time_string):
         month = int(result[1])
         day = int(result[2])
-        hour = int(result[3])
-        minute = int(result[4]) if result[4] else 0
+        hour = int(result[3]) if result[3] else 23
+        minute = int(result[4]) if result[4] else 0 if result[3] else 59
 
         return datetime.datetime(year, month, day, hour, minute)
     else:
