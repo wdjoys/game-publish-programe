@@ -2,9 +2,10 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-09 17:56:06
+# @Last Modified time: 2023-01-10 17:47:47
 
 
+from peewee import Model
 import re
 import time
 import datetime
@@ -12,8 +13,8 @@ from typing import List
 import aiohttp
 import asyncio
 
-from peewee import chunked
-from db.db import PublishSource, Servers, database
+from peewee import chunked, fn
+from db.db import PublishSource, ServersAd, ServersAdCount, database
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36'
@@ -36,7 +37,7 @@ async def get_html(url, headers=HEADERS, charset=None):
             return await resp.text(encoding=charset, errors='ignore')
 
 
-def resolver(html, publish_source: PublishSource):
+def resolver(html, publish_source: PublishSource, current_time):
     """解析网页html，返回广告记录 的字典 迭代器
 
     Args:
@@ -56,17 +57,17 @@ def resolver(html, publish_source: PublishSource):
         timestamp = time_format(
             year, record[publish_source.located_time], publish_source)
 
-        # TODO 去除已经过时的广告记录
-
-        yield {
-            'timestamp': timestamp,
-            'url': record[publish_source.located_url],
-            'name': record[publish_source.located_name],
-            "ip": record[publish_source.located_ip],
-            "route": record[publish_source.located_route],
-            "description": record[publish_source.located_description],
-            "service": record[publish_source.located_service],
-        }
+        # 过滤已经过时的广告记录
+        if current_time < timestamp:
+            yield {
+                'timestamp': timestamp,
+                'url': record[publish_source.located_url],
+                'name': record[publish_source.located_name],
+                "ip": record[publish_source.located_ip],
+                "route": record[publish_source.located_route],
+                "description": record[publish_source.located_description],
+                "service": record[publish_source.located_service],
+            }
 
 
 def time_format(year: int, time_string: str, publish_source: PublishSource):
@@ -102,15 +103,16 @@ def get_records_from_db(datetime):
     Returns:
         _type_: _description_
     """
-    result = Servers.select(Servers.name, Servers.timestamp).where(
-        Servers.timestamp > datetime)
+    result = ServersAd.select(ServersAd.name, ServersAd.timestamp).where(
+        ServersAd.timestamp > datetime)
 
     return result
 
 
-def remove_duplicates_for_db(records_db: List[Servers], records_crawler):
+def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler):
     """ 1.与数据库对比，去除数据库内已经存在的记录
         2.去除爬取的重复广告，并标记广告重复次数
+        3.构造数据id
 
     Args:
         records_db (_type_): _description_
@@ -119,22 +121,47 @@ def remove_duplicates_for_db(records_db: List[Servers], records_crawler):
         _type_: _description_
     """
 
-    tags_db = (f"{record.name}-{record.timestamp}" for record in records_db)
+    # 基于url 与 时间 构造数据库内的广告标识
+    tags_db = [
+        f"{record.url}-{datetime.timestamp(record.timestamp)}" for record in records_db]
 
     count_dict = {}
+    id_count_dict = {}
 
     removed_duplicates_records = []
 
+    server_id = get_primary_key_num(ServersAd)
     for record in records_crawler:
-        if tag := f"{record['name']}-{record['timestamp']}" not in tags_db:
+
+        if tag := f"{record['url']}-{datetime.timestamp(record['timestamp'])}" not in tags_db:
 
             if tag in count_dict:
                 count_dict[tag] += 1
             else:
                 count_dict[tag] = 1
-                removed_duplicates_records.append(record)
 
-    return removed_duplicates_records, count_dict  # 去重的广告记录，广告
+                server_id += 1
+                record['id'] = server_id
+
+                id_count_dict[server_id] = tag
+                removed_duplicates_records.append(record)
+    id_count = ({"source": 1, "game": id, "count": count_dict[tag]}
+                for id, tag in id_count_dict.items())
+    return removed_duplicates_records, id_count  # 去重的广告记录，广告
+
+
+def get_primary_key_num(model: Model):
+    """获取模型的当前id 主键 最大值
+
+    Args:
+        model (Model): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    sql = f"SHOW TABLE STATUS where name='{model._meta.table_name}'"
+    result = database.execute_sql(sql).fetchone()
+    return result[10]
 
 
 def marks_counters_for_record(records):
@@ -170,25 +197,28 @@ def load_publish_source_config() -> List[PublishSource]:
     return PublishSource.select().where(PublishSource.active == True)
 
 
-def save_servers(servers, publish_source):
-    """保存servers
+def save_crawled_data(server, server_count, publish_source, current_time):
+    """保存抓取的数据
 
     Args:
-        servers (_type_): _description_
-        publish_source (_type_, optional): _description_. Defaults to None.
-
-    Returns:
-        _type_: _description_
+        server (_type_): _description_
+        server_count (_type_): _description_
+        publish_source (_type_): _description_
+        current_time (_type_): _description_
     """
 
-    publish_source.last_run_time = time.time()
-    publish_source.save()
-    print("存入数据库", publish_source)
-
     with database.atomic():
+        # 更新爬虫最后运行时间
+        publish_source.last_run_time = current_time
+        publish_source.save()
 
-        for batch in chunked(servers, 100):
-            Servers.insert_many(batch).execute()
+        # 保存广告数据
+        for batch in chunked(server, 500):
+            ServersAd.insert_many(batch).execute()
+
+        # 保存广告数量数据
+        for batch in chunked(server_count, 500):
+            ServersAdCount.insert_many(batch).execute()
 
 
 async def collect(publish_source: PublishSource):
@@ -202,8 +232,17 @@ async def collect(publish_source: PublishSource):
     """
 
     html = await get_html(publish_source.url, headers=HEADERS, charset=publish_source.charset)
-    result = resolver(html, publish_source)
-    save_servers(result, publish_source)
+
+    current_time = datetime.datetime.now()
+
+    crawler_data = resolver(html, publish_source, current_time)
+
+    records_db = get_records_from_db(datetime=current_time)
+
+    server_ad, server_ad_count = remove_duplicates_for_db(
+        records_db, crawler_data)
+
+    save_crawled_data(server_ad, server_ad_count, publish_source, current_time)
 
 
 async def async_run():
@@ -215,7 +254,7 @@ async def async_run():
                  for publish_source in publish_source_list]
 
         tasks and await asyncio.wait(tasks)
-        await asyncio.sleep(10)
+        await asyncio.sleep(60)
 
 
 def run():
@@ -224,6 +263,8 @@ def run():
 
 
 if __name__ == "__main__":
-    import time
-    print(time.gmtime()
-          )
+    import re
+    c = re.compile("(\d)+月(\d+)日.(?:(\d+)点)?(?:(\d+)分)?")
+
+    res = c.search("1月10日/17点开放")
+    print(res.groups())

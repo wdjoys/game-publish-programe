@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-08 22:19:30
+# @Last Modified time: 2023-01-10 16:47:28
 from peewee import *
 
 database = MySQLDatabase('game-publish', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT',
@@ -18,19 +18,10 @@ class BaseModel(Model):
         database = database
 
 
-class GameSource(BaseModel):
-    count = IntegerField(null=True)
-    game = IntegerField(null=True)
-    source = IntegerField(null=True)
-
-    class Meta:
-        table_name = 'game_source'
-
-
 class PublishSource(BaseModel):
+    active = IntegerField()
     charset = CharField()
-    active = BooleanField(null=True)
-    last_run_time = DateTimeField(null=True)
+    last_run_time = DateTimeField()
     located_description = IntegerField()
     located_ip = IntegerField()
     located_name = IntegerField()
@@ -39,8 +30,8 @@ class PublishSource(BaseModel):
     located_time = IntegerField()
     located_time_d = IntegerField()
     located_time_h = IntegerField()
-    located_time_month = IntegerField()
     located_time_min = IntegerField()
+    located_time_month = IntegerField()
     located_url = IntegerField()
     record_reg_exp = CharField()
     time_reg_exp = CharField()
@@ -50,7 +41,7 @@ class PublishSource(BaseModel):
         table_name = 'publish_source'
 
 
-class Servers(BaseModel):
+class ServersAd(BaseModel):
     description = CharField(null=True)
     ip = CharField(null=True)
     name = CharField(null=True)
@@ -60,4 +51,13 @@ class Servers(BaseModel):
     url = CharField(null=True)
 
     class Meta:
-        table_name = 'servers'
+        table_name = 'servers_ad'
+
+
+class ServersAdCount(BaseModel):
+    count = IntegerField(null=True)
+    game = IntegerField(null=True)
+    source = IntegerField(null=True)
+
+    class Meta:
+        table_name = 'servers_ad_count'
