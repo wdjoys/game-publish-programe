@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-11 14:59:06
+# @Last Modified time: 2023-01-11 16:23:29
 
 
 import functools
@@ -15,7 +15,7 @@ import aiohttp
 import asyncio
 
 from peewee import chunked, fn
-from db.db import PublishSource, ServerTag, ServersAd, ServersAdCount, Tags, database
+from db.db import PublishSource, ServerTag, ServersAd, ServersAdCount, Tags, DATABASE
 from asyncio.coroutines import iscoroutine
 
 
@@ -199,7 +199,7 @@ def get_primary_key_num(model: Model):
         _type_: _description_
     """
     sql = f"SHOW TABLE STATUS where name='{model._meta.table_name}'"
-    result = database.execute_sql(sql).fetchone()
+    result = DATABASE.execute_sql(sql).fetchone()
     return result[10]-1
 
 
@@ -248,7 +248,7 @@ def save_crawled_data(server, server_count, publish_source, ads_tags, current_ti
         current_time (_type_): _description_
     """
 
-    with database.atomic():
+    with DATABASE.atomic():
         # 更新爬虫最后运行时间
         publish_source.last_run_time = current_time
         publish_source.save()

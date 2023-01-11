@@ -38,3 +38,7 @@ EXPOSE 9090
 WORKDIR /$WORKDIR/src/
 
 CMD python start.py
+
+
+
+# docker run game-publish -d -v ~/game-publish-programe/src/setting.py:/GAME-PUBLISH-PROGRAME/src/setting.py  game-publish 
