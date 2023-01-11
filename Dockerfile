@@ -41,4 +41,4 @@ CMD python start.py
 
 
 
-# docker run game-publish -d -v ~/game-publish-programe/src/setting.py:/GAME-PUBLISH-PROGRAME/src/setting.py  game-publish 
+# docker run --name game-publish -d -v ~/game-publish-programe/src/setting.py:/GAME-PUBLISH-PROGRAME/src/setting.py  -p 9090:9090 game-publish:0.2
