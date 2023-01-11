@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-11 16:23:29
+# @Last Modified time: 2023-01-11 23:55:18
 
 
 import functools
@@ -87,11 +87,9 @@ def resolver(html, publish_source: PublishSource, current_time):
     r = re.compile(rf'{publish_source.record_reg_exp}')
     search_result = r.findall(html)
 
-    year = time.gmtime()[0]
-
     for record in search_result:
         timestamp = time_format(
-            year, record[publish_source.located_time], publish_source)
+            current_time, record[publish_source.located_time], publish_source)
 
         # 过滤已经过时的广告记录
         if current_time < timestamp:
@@ -106,7 +104,7 @@ def resolver(html, publish_source: PublishSource, current_time):
             }
 
 
-def time_format(year: int, time_string: str, publish_source: PublishSource):
+def time_format(current_time: datetime.datetime, time_string: str, publish_source: PublishSource):
     """格式化时间
 
     Args:
@@ -120,12 +118,12 @@ def time_format(year: int, time_string: str, publish_source: PublishSource):
     r = re.compile(publish_source.time_reg_exp)
 
     if result := r.search(time_string):
-        month = int(result[1])
-        day = int(result[2])
+        month = int(result[1]) if result[1] else current_time.month
+        day = int(result[2]) if result[1] else current_time.day
         hour = int(result[3]) if result[3] else 23
         minute = int(result[4]) if result[4] else 0 if result[3] else 59
 
-        return datetime.datetime(year, month, day, hour, minute)
+        return datetime.datetime(current_time.year, month, day, hour, minute)
     else:
         raise ValueError
 
@@ -147,7 +145,7 @@ def get_records_from_db(datetime):
 
 
 @print_run_time
-def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler):
+def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler, publish_source):
     """ 1.与数据库对比，去除数据库内已经存在的记录
         2.去除爬取的重复广告，并标记广告重复次数
         3.构造数据id
@@ -184,7 +182,7 @@ def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler):
 
                 id_count_dict[server_id] = tag
                 removed_duplicates_records.append(record)
-    id_count = ({"source": 1, "game": id, "count": count_dict[tag]}
+    id_count = ({"source": publish_source.id, "game": id, "count": count_dict[tag]}
                 for id, tag in id_count_dict.items())
     return removed_duplicates_records, id_count  # 去重的广告记录，广告
 
@@ -300,7 +298,7 @@ async def collect(publish_source: PublishSource):
     records_db = get_records_from_db(datetime=current_time)
 
     server_ad, server_ad_count = remove_duplicates_for_db(
-        records_db, crawler_data)
+        records_db, crawler_data, publish_source)
 
     ads_tags = make_tags_ex(server_ad)
 
@@ -327,7 +325,11 @@ def run():
 
 if __name__ == "__main__":
     import re
-    c = re.compile("(\d)+月(\d+)日.(?:(\d+)点)?(?:(\d+)分)?")
+    #
+    c = re.compile(r'(?:今日|(?:(\d)+月)?(?:(\d+)日/))(?:(\d+):)?(\d+)?')
 
-    res = c.search("1月10日/17点开放")
-    print(res.groups())
+    sss = ["""今日22:30""", '01月13日/18:30', '01月11日/通宵推荐']
+
+    for s in sss:
+        res = c.search(s)
+        print(res.groups())

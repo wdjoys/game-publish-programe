@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-11 11:42:43
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-11 17:44:39
+# @Last Modified time: 2023-01-11 22:36:16
 
 import datetime
 from fastapi import APIRouter
@@ -23,7 +23,7 @@ CACHE_AD = {
 
 
 @router.get('/', )
-async def get_ads():
+def get_ads():
     current_time = datetime.datetime.now()
 
     global CACHE_AD
@@ -39,6 +39,5 @@ async def get_ads():
             'expiration_time': current_time+datetime.timedelta(seconds=60),
             'data': list(result.tuples().iterator())
         }
-        print("没走缓存")
 
     return CACHE_AD['data']
