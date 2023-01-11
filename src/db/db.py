@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-10 18:14:55
+# @Last Modified time: 2023-01-11 14:41:51
 from peewee import *
 
 database = MySQLDatabase('game-publish', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT',
@@ -41,6 +41,15 @@ class PublishSource(BaseModel):
         table_name = 'publish_source'
 
 
+class ServerTag(BaseModel):
+    server_id = IntegerField()
+    tag_id = IntegerField()
+
+    class Meta:
+        table_name = 'server_tag'
+        primary_key = False
+
+
 class ServersAd(BaseModel):
     description = CharField(null=True)
     ip = CharField(null=True)
@@ -62,3 +71,11 @@ class ServersAdCount(BaseModel):
     class Meta:
         table_name = 'servers_ad_count'
         primary_key = False
+
+
+class Tags(BaseModel):
+    name = CharField(null=True)
+    reg_exp = CharField(null=True)
+
+    class Meta:
+        table_name = 'tags'

@@ -2,9 +2,10 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-10 23:14:40
+# @Last Modified time: 2023-01-11 14:59:06
 
 
+import functools
 from peewee import Model
 import re
 import time
@@ -14,11 +15,46 @@ import aiohttp
 import asyncio
 
 from peewee import chunked, fn
-from db.db import PublishSource, ServersAd, ServersAdCount, database
+from db.db import PublishSource, ServerTag, ServersAd, ServersAdCount, Tags, database
+from asyncio.coroutines import iscoroutine
+
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36'
 }
+
+
+def print_run_time(func):
+    """计算函数执行耗时
+
+    Args:
+        func (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    def wrapper(*args, **kw):
+        local_time = time.time()
+        result = func(*args, **kw)
+        print(
+            f'Function [{func.__name__}] run time is {time.time() - local_time}')
+        return result
+
+    return wrapper
+
+
+# 异步计算时间函数
+def async_print_run_time(func):
+
+    @functools.wraps(func)
+    async def wrapper(*args, **kw):
+        local_time = time.time()
+        result = await func(*args, **kw)
+        print(
+            f'Function [{func.__name__}] run time is {time.time() - local_time}')
+        return result
+
+    return wrapper
 
 
 async def get_html(url, headers=HEADERS, charset=None):
@@ -94,6 +130,7 @@ def time_format(year: int, time_string: str, publish_source: PublishSource):
         raise ValueError
 
 
+@print_run_time
 def get_records_from_db(datetime):
     """查询尚未到展示时间的广告
 
@@ -109,6 +146,7 @@ def get_records_from_db(datetime):
     return result
 
 
+@print_run_time
 def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler):
     """ 1.与数据库对比，去除数据库内已经存在的记录
         2.去除爬取的重复广告，并标记广告重复次数
@@ -162,7 +200,7 @@ def get_primary_key_num(model: Model):
     """
     sql = f"SHOW TABLE STATUS where name='{model._meta.table_name}'"
     result = database.execute_sql(sql).fetchone()
-    return result[10]
+    return result[10]-1
 
 
 def marks_counters_for_record(records):
@@ -188,6 +226,7 @@ def marks_counters_for_record(records):
     return removed_duplicates_records, count_dict  # 去重的广告记录，广告
 
 
+@print_run_time
 def load_publish_source_config() -> List[PublishSource]:
     """加载采集配置文件
 
@@ -198,7 +237,8 @@ def load_publish_source_config() -> List[PublishSource]:
     return PublishSource.select().where(PublishSource.active == True)
 
 
-def save_crawled_data(server, server_count, publish_source, current_time):
+@print_run_time
+def save_crawled_data(server, server_count, publish_source, ads_tags, current_time):
     """保存抓取的数据
 
     Args:
@@ -221,7 +261,26 @@ def save_crawled_data(server, server_count, publish_source, current_time):
         for batch in chunked(server_count, 500):
             ServersAdCount.insert_many(batch).execute()
 
+        # 保存广告tags数据
+        for batch in chunked(ads_tags, 500):
+            ServerTag.insert_many(batch).execute()
 
+
+def make_tags_ex(server_ads):
+
+    tags: List[Tags] = Tags.select()
+
+    tags_re_compile_dict = {tag.id: re.compile(tag.reg_exp) for tag in tags}
+
+    for server_ad in server_ads:
+        server_ad_text = server_ad["name"]+server_ad["ip"] + \
+            server_ad["route"]+server_ad["description"]+server_ad["service"]
+        for id, compile in tags_re_compile_dict.items():
+            if compile.search(server_ad_text):
+                yield {"server_id": server_ad['id'], "tag_id": id}
+
+
+@async_print_run_time
 async def collect(publish_source: PublishSource):
     """采集网页信息并存入数据库
 
@@ -243,7 +302,10 @@ async def collect(publish_source: PublishSource):
     server_ad, server_ad_count = remove_duplicates_for_db(
         records_db, crawler_data)
 
-    save_crawled_data(server_ad, server_ad_count, publish_source, current_time)
+    ads_tags = make_tags_ex(server_ad)
+
+    save_crawled_data(server_ad, server_ad_count,
+                      publish_source, ads_tags, current_time)
 
 
 async def async_run():
