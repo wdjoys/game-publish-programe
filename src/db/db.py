@@ -2,11 +2,9 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-11 14:41:51
+# @Last Modified time: 2023-01-11 16:11:00
 from peewee import *
-
-database = MySQLDatabase('game-publish', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT',
-                         'use_unicode': True, 'host': 'localhost', 'user': 'root', 'password': 'benniu'})
+from setting import DATABASE
 
 
 class UnknownField(object):
@@ -15,7 +13,7 @@ class UnknownField(object):
 
 class BaseModel(Model):
     class Meta:
-        database = database
+        database = DATABASE
 
 
 class PublishSource(BaseModel):
