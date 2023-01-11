@@ -11,7 +11,7 @@
  Target Server Version : 100137
  File Encoding         : 65001
 
- Date: 10/01/2023 18:14:15
+ Date: 11/01/2023 15:52:55
 */
 
 SET NAMES utf8mb4;
@@ -37,7 +37,7 @@ CREATE TABLE `publish_source`  (
   `located_time_month` tinyint NOT NULL,
   `located_time_min` tinyint NOT NULL,
   `located_time_d` tinyint NOT NULL,
-  `last_run_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_run_time` datetime NOT NULL,
   `active` tinyint(1) NOT NULL,
   `charset` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   PRIMARY KEY (`id`) USING BTREE
@@ -46,6 +46,6 @@ CREATE TABLE `publish_source`  (
 -- ----------------------------
 -- Records of publish_source
 -- ----------------------------
-INSERT INTO `publish_source` VALUES (2, 'http://99s.com', 'o4\\(\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\"', 3, 1, 2, 0, 4, 5, 6, '(\\d)+月(\\d+)日.(?:(\\d+)点)?(?:(\\d+)分)?', 2, 0, 3, 1, '2023-01-10 18:13:33', 1, 'gb2312');
+INSERT INTO `publish_source` VALUES (2, 'http://99s.com', 'o\\d\\(\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\",\"(.+?)\"', 3, 1, 2, 0, 4, 5, 6, '(\\d)+月(\\d+)日.(?:(\\d+)点)?(?:(\\d+)分)?', 2, 0, 3, 1, '2023-01-11 15:52:18', 1, 'gb2312');
 
 SET FOREIGN_KEY_CHECKS = 1;
