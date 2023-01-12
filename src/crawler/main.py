@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-11 23:55:18
+# @Last Modified time: 2023-01-12 17:24:26
 
 
 import functools
@@ -129,8 +129,9 @@ def time_format(current_time: datetime.datetime, time_string: str, publish_sourc
 
 
 @print_run_time
-def get_records_from_db(datetime):
+def get_records_from_db(current_datetime):
     """查询尚未到展示时间的广告
+       基于url 与 时间 构造数据库内的广告标识
 
     Args:
         datetime (_type_): _description_
@@ -138,10 +139,22 @@ def get_records_from_db(datetime):
     Returns:
         _type_: _description_
     """
-    result = ServersAd.select(ServersAd.url, ServersAd.timestamp).where(
-        ServersAd.timestamp > datetime)
 
-    return result
+    def convert_ids(s): return [int(i) for i in (s or '').split(',') if i]
+
+    ids = (fn
+           .GROUP_CONCAT(ServersAdCount.source)
+           .python_value(convert_ids))
+
+    result = ServersAdCount.select(ServersAd.id, ServersAd.url, ServersAd.timestamp, ids.alias(
+        "ids")).join(ServersAd, on=(ServersAdCount.game == ServersAd.id)).group_by(ServersAdCount.game).where(
+        ServersAd.timestamp > current_datetime)
+
+    # 基于url 与 时间 构造数据库内的广告标识
+    identification_code_db = {
+        f"{record.serversad.url}-{datetime.datetime.timestamp(record.serversad.timestamp)}": (record.serversad.id, record.ids) for record in result}
+
+    return identification_code_db
 
 
 @print_run_time
@@ -157,31 +170,48 @@ def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler, publi
         _type_: _description_
     """
 
-    # 基于url 与 时间 构造数据库内的广告标识
-    tags_db = [
-        f"{record.url}-{datetime.datetime.timestamp(record.timestamp)}" for record in records_db]
-
-    count_dict = {}
+    count_dict = {}  # 用来给爬取的广告计数
     id_count_dict = {}
 
     removed_duplicates_records = []
 
-    server_id = get_primary_key_num(ServersAd)
+    server_id = get_primary_key_num(ServersAd)  # 从数据库获取广告表当前id
+    # 遍历抓取的广告
     for record in records_crawler:
-        tag = f"{record['url']}-{datetime.datetime.timestamp(record['timestamp'])}"
 
-        if tag not in tags_db:
+        # 构建标识码 根据地址 时间
+        identification_code = f"{record['url']}-{datetime.datetime.timestamp(record['timestamp'])}"
 
-            if tag in count_dict:
-                count_dict[tag] += 1
+        # 根据标识码判断是否在数据库内
+        if identification_code in records_db:
+
+            # 是否在 server ad count 表内记录
+            if not publish_source.id in records_db[identification_code][1]:
+
+                # 判断广告是否重复多条
+                if identification_code in count_dict:
+                    count_dict[identification_code] += 1
+                else:
+                    count_dict[identification_code] = 1
+
+                    # 为广告id 与 标识码建立对应关系
+                    id_count_dict[records_db[identification_code]
+                                  [0]] = identification_code
+
+        else:
+            # 判断广告是否重复多条
+            if identification_code in count_dict:
+                count_dict[identification_code] += 1
             else:
-                count_dict[tag] = 1
+                count_dict[identification_code] = 1
 
                 server_id += 1
-                record['id'] = server_id
+                record['id'] = server_id  # 为这条广告增加id
 
-                id_count_dict[server_id] = tag
-                removed_duplicates_records.append(record)
+                # 为广告id 与 标识码建立对应关系
+                id_count_dict[server_id] = identification_code
+                removed_duplicates_records.append(record)  # 增加到已经去重的广告列表内
+
     id_count = ({"source": publish_source.id, "game": id, "count": count_dict[tag]}
                 for id, tag in id_count_dict.items())
     return removed_duplicates_records, id_count  # 去重的广告记录，广告
@@ -265,16 +295,31 @@ def save_crawled_data(server, server_count, publish_source, ads_tags, current_ti
 
 
 def make_tags_ex(server_ads):
+    """为广告打上tags  
+       返回打tags的server id 与 tags id 对应关系可迭代对象
+
+    Args:
+        server_ads (_type_): _description_
+
+    Yields:
+        _type_: _description_
+    """
 
     tags: List[Tags] = Tags.select()
 
+    # 建立tagid 与 tags 匹配规则对象 对应字典
     tags_re_compile_dict = {tag.id: re.compile(tag.reg_exp) for tag in tags}
 
     for server_ad in server_ads:
+        # 广告词的文本
         server_ad_text = server_ad["name"]+server_ad["ip"] + \
             server_ad["route"]+server_ad["description"]+server_ad["service"]
+
+        # 遍历所有匹配规则
         for id, compile in tags_re_compile_dict.items():
+            # 判断是否匹配成功
             if compile.search(server_ad_text):
+                # 返回广告id 与 tag id
                 yield {"server_id": server_ad['id'], "tag_id": id}
 
 
@@ -295,7 +340,7 @@ async def collect(publish_source: PublishSource):
 
     crawler_data = resolver(html, publish_source, current_time)
 
-    records_db = get_records_from_db(datetime=current_time)
+    records_db = get_records_from_db(current_datetime=current_time)
 
     server_ad, server_ad_count = remove_duplicates_for_db(
         records_db, crawler_data, publish_source)
@@ -309,11 +354,13 @@ async def collect(publish_source: PublishSource):
 async def async_run():
 
     while True:
-
+        # 从数据库加在爬虫数据源配置
         publish_source_list = load_publish_source_config()
+        # 创建爬虫任务
         tasks = [asyncio.create_task(collect(publish_source), name=f'任务-{publish_source.id}')
                  for publish_source in publish_source_list]
 
+        # 判断任务存在 并等待任务执行完成
         tasks and await asyncio.wait(tasks)
         await asyncio.sleep(60)
 

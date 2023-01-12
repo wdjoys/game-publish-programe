@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-11 16:11:00
+# @Last Modified time: 2023-01-12 15:51:52
 from peewee import *
 from setting import DATABASE
 
@@ -77,3 +77,20 @@ class Tags(BaseModel):
 
     class Meta:
         table_name = 'tags'
+
+
+if __name__ == "__main__":
+
+    from peewee import fn
+
+    def convert_ids(s): return [int(i) for i in (s or '').split(',') if i]
+
+    zzz = (fn
+           .GROUP_CONCAT(ServersAdCount.source)
+           .python_value(convert_ids))
+
+    query = ServersAdCount.select(ServersAdCount.game, zzz.alias(
+        "ids")).group_by(ServersAdCount.game)
+
+    for user in query:
+        print(user.game, user.ids)
