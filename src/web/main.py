@@ -2,15 +2,24 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:16:19
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-11 17:54:17
+# @Last Modified time: 2023-01-17 10:18:47
 
 from fastapi import FastAPI
 from web.views.data import router as data_router
-
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
 app.include_router(data_router)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def run():
