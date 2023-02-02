@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 14:26:05
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-12 17:24:26
+# @Last Modified time: 2023-02-02 16:32:55
 
 
 import functools
@@ -117,15 +117,15 @@ def time_format(current_time: datetime.datetime, time_string: str, publish_sourc
 
     r = re.compile(publish_source.time_reg_exp)
 
-    if result := r.search(time_string):
-        month = int(result[1]) if result[1] else current_time.month
-        day = int(result[2]) if result[1] else current_time.day
-        hour = int(result[3]) if result[3] else 23
-        minute = int(result[4]) if result[4] else 0 if result[3] else 59
-
-        return datetime.datetime(current_time.year, month, day, hour, minute)
-    else:
+    if not (result := r.search(time_string)):
         raise ValueError
+
+    month = int(result[1]) if result[1] else current_time.month
+    day = int(result[2]) if result[1] else current_time.day
+    hour = int(result[3]) if result[3] else 23
+    minute = int(result[4]) if result[4] else 0 if result[3] else 59
+
+    return datetime.datetime(current_time.year, month, day, hour, minute)
 
 
 @print_run_time
@@ -186,7 +186,7 @@ def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler, publi
         if identification_code in records_db:
 
             # 是否在 server ad count 表内记录
-            if not publish_source.id in records_db[identification_code][1]:
+            if publish_source.id not in records_db[identification_code][1]:
 
                 # 判断广告是否重复多条
                 if identification_code in count_dict:
@@ -198,19 +198,17 @@ def remove_duplicates_for_db(records_db: List[ServersAd], records_crawler, publi
                     id_count_dict[records_db[identification_code]
                                   [0]] = identification_code
 
+        elif identification_code in count_dict:
+            count_dict[identification_code] += 1
         else:
-            # 判断广告是否重复多条
-            if identification_code in count_dict:
-                count_dict[identification_code] += 1
-            else:
-                count_dict[identification_code] = 1
+            count_dict[identification_code] = 1
 
-                server_id += 1
-                record['id'] = server_id  # 为这条广告增加id
+            server_id += 1
+            record['id'] = server_id  # 为这条广告增加id
 
-                # 为广告id 与 标识码建立对应关系
-                id_count_dict[server_id] = identification_code
-                removed_duplicates_records.append(record)  # 增加到已经去重的广告列表内
+            # 为广告id 与 标识码建立对应关系
+            id_count_dict[server_id] = identification_code
+            removed_duplicates_records.append(record)  # 增加到已经去重的广告列表内
 
     id_count = ({"source": publish_source.id, "game": id, "count": count_dict[tag]}
                 for id, tag in id_count_dict.items())
