@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-02-03 17:58:05
+# @Last Modified time: 2023-02-03 18:12:17
 from peewee import *
 from setting import DATABASE
 
@@ -90,9 +90,8 @@ if __name__ == "__main__":
            .GROUP_CONCAT(ServersAdCount.source)
            .python_value(convert_ids))
 
-    result = ServersAdCount.select(ServersAd.id, ServersAd.url, ServersAd.timestamp, ids.alias(
-        "ids")).join(ServersAd, on=(ServersAdCount.game == ServersAd.id)).group_by(ServersAdCount.game).where(
-        ServersAd.id.between(83815, 83865))
+    result = ServersAd().select(ServersAd.id, ServersAdCount.source, ServersAdCount.count).join(ServersAdCount, on=(ServersAdCount.game ==
+                                                                                                                    ServersAd.id)).where(ServersAd.id.between(83857, 83899))
 
     for g in result:
-        print(g.serversad.id, g.ids)
+        print(g.id, g.serversadcount.count)
