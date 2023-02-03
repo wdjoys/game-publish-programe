@@ -2,12 +2,12 @@
 # @Author: xiaocao
 # @Date:   2023-01-11 11:42:43
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-02-02 16:07:10
+# @Last Modified time: 2023-02-03 17:41:45
 
 import datetime
 from fastapi import APIRouter
 
-from db.db import ServersAd
+from db.db import ServersAd, Tags, PublishSource
 
 
 router = APIRouter(
@@ -23,8 +23,13 @@ CACHE_AD = {
 }
 
 
-@router.get('/', )
-async def get_ads():
+@router.get('/ad/', )
+async def ad():
+    """获取今天0点及以后得开区数据
+
+    Returns:
+        _type_: _description_
+    """
 
     current_time = datetime.datetime.now()
 
@@ -49,3 +54,29 @@ async def get_ads():
 
     # 从缓存返回广告数据
     return CACHE_AD['data']
+
+
+@router.get('/tag/', )
+async def tag():
+    """获取服务器的tags配置
+
+    Returns:
+        _type_: _description_
+    """
+    result = Tags.select()
+    return list(result.dicts())
+
+
+@router.get('/source/', )
+async def source():
+    """获取采集源配置
+
+    Returns:
+        _type_: _description_
+    """
+    result = PublishSource.select(PublishSource.id, PublishSource.name)
+    return list(result.dicts())
+
+
+if __name__ == '__main__':
+    pass

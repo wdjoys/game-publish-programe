@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-01-12 15:51:52
+# @Last Modified time: 2023-02-03 17:58:05
 from peewee import *
 from setting import DATABASE
 
@@ -34,6 +34,7 @@ class PublishSource(BaseModel):
     record_reg_exp = CharField()
     time_reg_exp = CharField()
     url = CharField()
+    name = CharField()
 
     class Meta:
         table_name = 'publish_source'
@@ -85,12 +86,13 @@ if __name__ == "__main__":
 
     def convert_ids(s): return [int(i) for i in (s or '').split(',') if i]
 
-    zzz = (fn
+    ids = (fn
            .GROUP_CONCAT(ServersAdCount.source)
            .python_value(convert_ids))
 
-    query = ServersAdCount.select(ServersAdCount.game, zzz.alias(
-        "ids")).group_by(ServersAdCount.game)
+    result = ServersAdCount.select(ServersAd.id, ServersAd.url, ServersAd.timestamp, ids.alias(
+        "ids")).join(ServersAd, on=(ServersAdCount.game == ServersAd.id)).group_by(ServersAdCount.game).where(
+        ServersAd.id.between(83815, 83865))
 
-    for user in query:
-        print(user.game, user.ids)
+    for g in result:
+        print(g.serversad.id, g.ids)
