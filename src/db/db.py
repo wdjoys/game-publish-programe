@@ -2,13 +2,14 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-02-03 18:12:17
+# @Last Modified time: 2023-02-04 14:05:32
 from peewee import *
 from setting import DATABASE
 
 
 class UnknownField(object):
-    def __init__(self, *_, **__): pass
+    def __init__(self, *_, **__):
+        pass
 
 
 class BaseModel(Model):
@@ -37,7 +38,7 @@ class PublishSource(BaseModel):
     name = CharField()
 
     class Meta:
-        table_name = 'publish_source'
+        table_name = "publish_source"
 
 
 class ServerTag(BaseModel):
@@ -45,7 +46,7 @@ class ServerTag(BaseModel):
     tag_id = IntegerField()
 
     class Meta:
-        table_name = 'server_tag'
+        table_name = "server_tag"
         primary_key = False
 
 
@@ -59,7 +60,7 @@ class ServersAd(BaseModel):
     url = CharField(null=True)
 
     class Meta:
-        table_name = 'servers_ad'
+        table_name = "servers_ad"
 
 
 class ServersAdCount(BaseModel):
@@ -68,7 +69,7 @@ class ServersAdCount(BaseModel):
     source = IntegerField(null=True)
 
     class Meta:
-        table_name = 'servers_ad_count'
+        table_name = "servers_ad_count"
         primary_key = False
 
 
@@ -77,21 +78,66 @@ class Tags(BaseModel):
     reg_exp = CharField(null=True)
 
     class Meta:
-        table_name = 'tags'
+        table_name = "tags"
 
 
 if __name__ == "__main__":
+    from peewee import fn, Case, JOIN
 
-    from peewee import fn
+    # 查询出采集源配置
+    source_configs = list(
+        PublishSource().select(PublishSource.id, PublishSource.name).dicts()
+    )
 
-    def convert_ids(s): return [int(i) for i in (s or '').split(',') if i]
+    # 动态构造字段
+    case_list = [
+        fn.MAX(
+            Case(
+                None,
+                ((ServersAdCount.source == source_config["id"], ServersAdCount.count),),
+                0,
+            )
+        ).alias(source_config["name"])
+        for source_config in source_configs
+    ]
 
-    ids = (fn
-           .GROUP_CONCAT(ServersAdCount.source)
-           .python_value(convert_ids))
+    # 分割函数
+    def convert_ids(s):
+        return [int(i) for i in (s or "").split(",") if i]
 
-    result = ServersAd().select(ServersAd.id, ServersAdCount.source, ServersAdCount.count).join(ServersAdCount, on=(ServersAdCount.game ==
-                                                                                                                    ServersAd.id)).where(ServersAd.id.between(83857, 83899))
+    # tags 字段
+    tags = (
+        fn.GROUP_CONCAT(ServerTag.tag_id.distinct())
+        .python_value(convert_ids)
+        .alias("tags")
+    )
+
+    result = (
+        ServersAd()
+        .select(
+            ServersAd.name,
+            ServersAd.route,
+            ServersAd.ip,
+            ServersAd.timestamp,
+            ServersAd.description,
+            ServersAd.service,
+            ServersAd.url,
+            *case_list,
+            tags
+        )
+        .join(
+            ServersAdCount,
+            on=(ServersAdCount.game == ServersAd.id),
+            join_type=JOIN.LEFT_OUTER,
+        )
+        .join(
+            ServerTag,
+            on=(ServerTag.server_id == ServersAd.id),
+            join_type=JOIN.LEFT_OUTER,
+        )
+        .where(ServersAd.id.between(35183, 83899))
+        .group_by(ServersAdCount.game, ServerTag.server_id)
+    )
 
     for g in result:
-        print(g.id, g.serversadcount.count)
+        print(g.id, g.name, g.serversadcount.count)
