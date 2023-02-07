@@ -2,7 +2,7 @@
 # @Author: xiaocao
 # @Date:   2023-01-07 18:11:15
 # @Last Modified by:   xiaocao
-# @Last Modified time: 2023-02-04 14:05:32
+# @Last Modified time: 2023-02-06 10:55:13
 from peewee import *
 from setting import DATABASE
 
